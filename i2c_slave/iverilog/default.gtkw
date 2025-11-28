@@ -1,0 +1,27 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Fri Nov 28 17:05:57 2025
+[*]
+[dumpfile] "/mnt/c/Users/werne/OneDrive/github_repos/devel_wsc_digital/i2c_slave/iverilog/i2c_slave_tb.vcd"
+[dumpfile_mtime] "Fri Nov 28 17:04:22 2025"
+[dumpfile_size] 3297
+[savefile] "/mnt/c/Users/werne/OneDrive/github_repos/devel_wsc_digital/i2c_slave/iverilog/default.gtkw"
+[timestart] 0
+[size] 1390 1009
+[pos] -1 -1
+*-17.657089 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] testbench.
+[sst_width] 297
+[signals_width] 86
+[sst_expanded] 1
+[sst_vpaned_height] 299
+@29
+testbench.uut.rst_n
+@28
+testbench.uut.clk
+testbench.uut.scl
+testbench.uut.sda
+testbench.uut.sda_dir
+testbench.uut.sda_in
+[pattern_trace] 1
+[pattern_trace] 0
