@@ -14,7 +14,7 @@ SRC_DIR = ../src
 TB_DIR = ../tb
 
 SRC_FILES = $(SRC_DIR)/i2c_slave.v
-TB_FILES = $(TB_DIR)/i2c_slave_tb.sv
+TB_FILES = $(TB_DIR)/i2c_master.sv $(TB_DIR)/i2c_slave_tb.sv
 
 DUMPFILE = i2c_slave_tb.vcd
 GTKWFILE = default.gtkw
@@ -36,7 +36,7 @@ sim:
 	$(VVP) run.vvp
 
 wav:
-	$(GTKWAVE) -f $(DUMPFILE) $(GTKWFILE)
+	$(GTKWAVE) -f $(DUMPFILE) $(GTKWFILE) &
 
 clean:
 	rm -f run.vvp $(DUMPFILE)

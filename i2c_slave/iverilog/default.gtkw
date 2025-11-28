@@ -1,27 +1,28 @@
 [*]
 [*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
-[*] Fri Nov 28 17:05:57 2025
+[*] Fri Nov 28 20:44:07 2025
 [*]
 [dumpfile] "/mnt/c/Users/werne/OneDrive/github_repos/devel_wsc_digital/i2c_slave/iverilog/i2c_slave_tb.vcd"
-[dumpfile_mtime] "Fri Nov 28 17:04:22 2025"
-[dumpfile_size] 3297
+[dumpfile_mtime] "Fri Nov 28 20:43:39 2025"
+[dumpfile_size] 25305
 [savefile] "/mnt/c/Users/werne/OneDrive/github_repos/devel_wsc_digital/i2c_slave/iverilog/default.gtkw"
 [timestart] 0
-[size] 1390 1009
+[size] 1479 1119
 [pos] -1 -1
-*-17.657089 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-17.657089 96000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] testbench.
 [sst_width] 297
-[signals_width] 86
+[signals_width] 118
 [sst_expanded] 1
-[sst_vpaned_height] 299
-@29
-testbench.uut.rst_n
+[sst_vpaned_height] 337
 @28
-testbench.uut.clk
-testbench.uut.scl
-testbench.uut.sda
-testbench.uut.sda_dir
-testbench.uut.sda_in
+testbench.rst_n
+testbench.clk
+testbench.scl
+testbench.sda
+testbench.scl_slave_o
+testbench.sda_slave_o
+@29
+testbench.i2c_master_inst.finished
 [pattern_trace] 1
 [pattern_trace] 0

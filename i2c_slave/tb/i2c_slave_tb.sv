@@ -28,27 +28,27 @@ module testbench ();
     wire sda;
     logic [7:0] data_out;
     logic data_ready;
+    logic finished;
 
     string  dump_fname;
     initial dump_fname = `DUMP_FILE;
 
     // Instantiate the I2C slave module
-    i2c_slave uut (
-        .clk, .rst_n, .scl, .sda,
-        .data_out, .data_ready
+    logic scl_slave_o;
+    logic sda_slave_o;
+    i2c_slave i2c_slave_inst (
+        .clk(clk), .rst_n(rst_n), .scl_i(scl), .sda_i(sda),
+        .scl_o(scl_slave_o), .sda_o(sda_slave_o),
+        .data_o(data_out), .data_ready(data_ready)
     );
 
-    task gen_start_condition();
-        begin
-            // Implement start condition generation
-        end
-    endtask
-
-    task gen_stop_condition();
-        begin
-            // Implement stop condition generation
-        end
-    endtask
+    // Instantiate the I2C master model
+    logic scl_master_o;
+    logic sda_master_o;
+    i2c_master i2c_master_inst (
+        .clk(clk), .rst_n(rst_n), .sda_i(sda), .scl_i(scl),
+        .sda_o(sda_master_o), .scl_o(scl_master_o), .finished(finished)
+    );
 
     // Clock generation
     initial begin
@@ -56,17 +56,23 @@ module testbench ();
         forever #(CLK_PERIOD / 2) clk = ~clk;
     end
 
-    logic scl_master;
-    logic sda_master;
-    assign scl = scl_master ? 1'bz : 1'b0; // Open-drain behavior
-    assign sda = sda_master ? 1'bz : 1'b0; // Open-drain behavior
+    always @(posedge finished) begin
+        $display("I2C Master Finished Transactions");
+        #100;
+        $finish;
+    end
+
+
+    assign (weak1, strong0) scl = (scl_slave_o==1'b0) ? 1'b0 : 1'b1; // Open-drain behavior
+    assign (weak1, strong0) sda = (sda_slave_o==1'b0) ? 1'b0 : 1'b1; // Open-drain behavior
+    assign (weak1, strong0) scl = (scl_master_o==1'b0) ? 1'b0 : 1'b1; // Open-drain behavior
+    assign (weak1, strong0) sda = (sda_master_o==1'b0) ? 1'b0 : 1'b1; // Open-drain behavior
+
     // I2C master simulation tasks can be added here to drive scl_master and sda_master
     // Test sequence
     initial begin
         // Initialize signals
         rst_n <= 0;
-        scl_master <= 1;
-        sda_master <= 1;
 
         // Release reset
         #(CLK_PERIOD * 2);
@@ -75,8 +81,8 @@ module testbench ();
         // Simulate I2C transactions here
         // Example: Start condition, address, data, stop condition
 
-        // Finish simulation
-        #(CLK_PERIOD * 100);
+        // Finish simulation after 1s if not finished before
+        #1_000_000;
         $finish;
     end
 
