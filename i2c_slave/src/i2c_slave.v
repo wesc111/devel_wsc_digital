@@ -29,28 +29,90 @@ module i2c_slave (
         ACK
     } state_t;
 
-    state_t current_state, next_state;
-    logic [7:0] shift_reg;
-    logic [2:0] bit_count;
-    logic start_condition, stop_condition;
+    // asynchronous inputs need to be synchronized to local clock domain
+    logic sda_i_sync;
+    logic scl_i_sync;
+    sync_2ff sync1 (
+        .clk(clk),
+        .rst_n(rst_n),
+        .in_ai(sda_i),
+        .out_o(sda_i_sync) );
+    sync_2ff sync2 (
+        .clk(clk),
+        .rst_n(rst_n),
+        .in_ai(scl_i),
+        .out_o(scl_i_sync) );
 
-    initial begin
-        current_state = IDLE;
-        data_o = 8'b0;
-        data_ready = 1'b0;
-        scl_o = 1'b1; // Release SCL
-        sda_o = 1'b1; // Release SDA
+    // Detect start and stop conditions
+    logic sda_i_sync_d1;
+    logic scl_i_sync_d1;
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            sda_i_sync_d1 <= 1'b1;
+            scl_i_sync_d1 <= 1'b1;
+        end  
+        else begin
+            sda_i_sync_d1 <= sda_i_sync;
+            scl_i_sync_d1 <= scl_i_sync;
+        end   
     end
 
-    // Start and Stop condition detection
+    // Generate strobe on SCL rising edge
+    logic sdi_strobe;
+    assign sdi_strobe = !scl_i_sync_d1 && scl_i_sync;
+
+    logic start_condition;
+    logic stop_condition;
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             start_condition <= 1'b0;
             stop_condition <= 1'b0;
-        end else begin
-            start_condition <= (scl_i == 1'b1 && sda_i == 1'b0);
-            stop_condition <= (scl_i == 1'b1 && sda_i == 1'b1);
+        end  
+        else begin
+            if (scl_i_sync_d1 && sda_i_sync_d1 && !sda_i_sync) begin
+                // Falling edge of SDA during SCL high detected -> Start condition
+                start_condition <= 1'b1;
+            end
+            else if (scl_i_sync_d1 && !sda_i_sync_d1 && sda_i_sync) begin
+                // Rising edge of SDA during SCL high detected -> Stop condition
+                stop_condition <= 1'b1;
+            end
+            else begin
+                start_condition <= 1'b0;
+                stop_condition <= 1'b0;
+            end
         end
     end
 
+   // bit counter
+    logic [3:0] bit_count;
+    logic ack_cycle;
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            bit_count <= 4'd8;
+            ack_cycle <= 1'b0;
+        end  
+        else if (start_condition) begin
+            bit_count <= 4'd8;
+            ack_cycle <= 1'b0;
+        end
+        else if (sdi_strobe) begin
+            if (bit_count == 4'd0) begin      
+                bit_count <= 4'd8;
+                ack_cycle <= 1'b1;
+            end
+            else begin
+                bit_count <= bit_count - 4'd1;
+                ack_cycle <= 1'b0;
+            end
+        end
+    end
+
+
+   initial begin
+        scl_o = 1'b1; // Open-drain idle state
+        sda_o = 1'b1; // Open-drain idle state
+        data_o = 8'b0;
+        data_ready = 1'b0;
+    end
 endmodule

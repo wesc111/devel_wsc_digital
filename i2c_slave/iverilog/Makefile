@@ -13,8 +13,8 @@ INCLUDE_DIR = ../src
 SRC_DIR = ../src
 TB_DIR = ../tb
 
-SRC_FILES = $(SRC_DIR)/i2c_slave.v
-TB_FILES = $(TB_DIR)/i2c_master.sv $(TB_DIR)/i2c_slave_tb.sv
+SRC_FILES = $(SRC_DIR)/sync_2ff.v $(SRC_DIR)/i2c_slave.v
+TB_FILES =  $(TB_DIR)/i2c_master.sv $(TB_DIR)/i2c_slave_tb.sv
 
 DUMPFILE = i2c_slave_tb.vcd
 GTKWFILE = default.gtkw
