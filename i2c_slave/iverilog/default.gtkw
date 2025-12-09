@@ -1,19 +1,19 @@
 [*]
 [*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
-[*] Mon Dec  8 14:08:17 2025
+[*] Tue Dec  9 16:50:04 2025
 [*]
-[dumpfile] "/mnt/c/Users/werne/OneDrive/github_repos/devel_wsc_digital/i2c_slave/iverilog/i2c_slave_tb.vcd"
-[dumpfile_mtime] "Mon Dec  8 14:04:32 2025"
-[dumpfile_size] 78133
-[savefile] "/mnt/c/Users/werne/OneDrive/github_repos/devel_wsc_digital/i2c_slave/iverilog/default.gtkw"
-[timestart] 0
+[dumpfile] "/home/werner/github_repos/devel_wsc_digital/i2c_slave/iverilog/i2c_slave_tb.vcd"
+[dumpfile_mtime] "Tue Dec  9 16:48:52 2025"
+[dumpfile_size] 593885
+[savefile] "/home/werner/github_repos/devel_wsc_digital/i2c_slave/iverilog/default.gtkw"
+[timestart] 103840000
 [size] 1479 1119
-[pos] -1 -1
-*-22.657089 96000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[pos] 179 0
+*-22.001818 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] testbench.
 [treeopen] testbench.i2c_slave_inst.
 [sst_width] 297
-[signals_width] 150
+[signals_width] 174
 [sst_expanded] 1
 [sst_vpaned_height] 337
 @28
@@ -26,9 +26,21 @@ testbench.sda_slave_o
 testbench.i2c_slave_inst.start_condition
 testbench.i2c_slave_inst.stop_condition
 testbench.i2c_master_inst.finished
-@22
-testbench.i2c_slave_inst.bit_count[2:0]
-@29
 testbench.i2c_slave_inst.ack_cycle
+testbench.i2c_slave_inst.set_bit_count
+@22
+testbench.i2c_slave_inst.bit_count[3:0]
+@2028
+^1 /home/werner/github_repos/devel_wsc_digital/i2c_slave/iverilog/states.gtkw
+testbench.i2c_slave_inst.current_state[2:0]
+@22
+testbench.i2c_slave_inst.address_reg[6:0]
+@28
+testbench.i2c_slave_inst.address_matched
+testbench.i2c_slave_inst.addr_ack
+@22
+testbench.i2c_slave_inst.data_o[7:0]
+@28
+testbench.i2c_slave_inst.data_ready
 [pattern_trace] 1
 [pattern_trace] 0

@@ -3,23 +3,24 @@
 // Note: This is a placeholder implementation and should be expanded
 // according to the specific test requirements.
 
+// Author: Werner Schoegler
+// Date: 30-Nov-2025
+
+
 `timescale 1ns / 1ps
 
-module i2c_master (
+module i2c_master 
+#(  parameter STASTO_DELAY = 100,       // Delay for start/stop conditions
+    parameter BIT_DELAY = 1000          // Delay for each bit
+)
+(
     input logic clk,
     input logic rst_n,
     input logic sda_i,
     input logic scl_i,
     output logic sda_o,
-    output logic scl_o,
-    output logic finished
+    output logic scl_o
 );
-
-localparam STASTO_DELAY = 50; // Delay for start/stop conditions
-localparam BIT_DELAY = 1000;   // Delay for each bit
-
-localparam logic [6:0] ADDR = 7'h21; // Example slave address
-localparam logic [7:0] DATA = 8'hA5; // Example data to send
 
 task set_idle;
     sda_o = 1'b1;
@@ -54,36 +55,42 @@ task gen_bit(input logic bit_value);
     sda_o = bit_value;
     #(BIT_DELAY/4);
     scl_o = 1'b1;
-    #(BIT_DELAY/4);
+    #(BIT_DELAY/2);
     scl_o = 1'b0;
-    #(BIT_DELAY/4);
 endtask
 
-task gen_write(input logic [6:0] addr, input logic [7:0] data);
+task gen_write(input logic [6:0] addr);
     for (int i = 6; i >= 0; i--) begin
         gen_bit(addr[i]);
     end
     gen_bit(1'b0); //R_WN bit for write operation
     // Generate ACK bit (assuming slave always ACKs)
     gen_bit(1'b1); // Master releases SDA for ACK    
+endtask
+
+task gen_data(input logic [7:0] data);
     for (int i = 7; i >= 0; i--) begin
         gen_bit(data[i]);
     end
     gen_bit(1'b1); // Master releases SDA for ACK
 endtask
 
-initial begin
-    $display("I2C Master Model Started");
-    finished = 1'b0;
-    set_idle();
-    #1000;
+// Write multiple data bytes to a given address
+task write_data_bytes(input int number_of_bytes=1, input logic [6:0] addr, 
+                      input logic [7:0] data0 = 8'h00,
+                      input logic [7:0] data1 = 8'h00,
+                      input logic [7:0] data2 = 8'h00,
+                      input logic [7:0] data3 = 8'h00);
+    $display("I2C Master Model write_data_bytes() called with %0d bytes", number_of_bytes);
     gen_start();
-    gen_write(ADDR, DATA);
+    gen_write(addr);
+    gen_data(data0);
+    if (number_of_bytes > 1) gen_data(data1);
+    if (number_of_bytes > 2) gen_data(data2);
+    if (number_of_bytes > 3) gen_data(data3);
     gen_stop();
-    #10000;
-    finished = 1'b1;
-    $display("I2C Master Model Finished");
-end
+    $display("I2C Master Model write_data_bytes() completed");
+endtask
 
 endmodule
     // I2C Master signals and states

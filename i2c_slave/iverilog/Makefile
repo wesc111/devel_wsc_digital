@@ -27,16 +27,24 @@ GTKWAVE = gtkwave
 
 help:
 	@echo "make [sim wav]"
-	@echo "    make sim ... start icarus VERILOG simulation"
-	@echo "    make wav ... start gtkwave waveform viewer"
+	@echo "    make sim ... run icarus VERILOG simulation"
+	@echo "    make wav ... run VERILOG simulation and start gtkwave waveform afterwards"
 
 # 
-sim:
-	$(IVERILOG) $(IVER_OPTIONS) -o run.vvp $(TB_FILES) $(SRC_FILES)
+
+run.vvp: $(SRC_FILES) $(TB_FILES)
+	$(IVERILOG) $(IVER_OPTIONS) -o run.vvp $(SRC_FILES) $(TB_FILES)
+
+sim: run.vvp
 	$(VVP) run.vvp
 
-wav:
+wav: run.vvp
+	$(VVP) run.vvp
 	$(GTKWAVE) -f $(DUMPFILE) $(GTKWFILE) &
+
+run:
+	make sim
+	make run
 
 clean:
 	rm -f run.vvp $(DUMPFILE)

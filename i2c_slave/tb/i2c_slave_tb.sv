@@ -10,7 +10,6 @@
 `define DUMP_FLAG 1
 `define DUMP_FILE "i2c_slave_tb.vcd"
 
-
 module testbench ();
 
     // Parameters
@@ -28,7 +27,6 @@ module testbench ();
     wire sda;
     logic [7:0] data_out;
     logic data_ready;
-    logic finished;
 
     string  dump_fname;
     initial dump_fname = `DUMP_FILE;
@@ -36,7 +34,8 @@ module testbench ();
     // Instantiate the I2C slave module
     logic scl_slave_o;
     logic sda_slave_o;
-    i2c_slave i2c_slave_inst (
+    i2c_slave #(.SLAVE_ADDRESS(7'h21)) 
+        i2c_slave_inst (
         .clk(clk), .rst_n(rst_n), .scl_i(scl), .sda_i(sda),
         .scl_o(scl_slave_o), .sda_o(sda_slave_o),
         .data_o(data_out), .data_ready(data_ready)
@@ -45,21 +44,18 @@ module testbench ();
     // Instantiate the I2C master model
     logic scl_master_o;
     logic sda_master_o;
-    i2c_master i2c_master_inst (
+    i2c_master 
+        #(  .STASTO_DELAY(50),   // Delay for start/stop conditions
+            .BIT_DELAY(1000)     // Delay for each bi
+    )  i2c_master (
         .clk(clk), .rst_n(rst_n), .sda_i(sda), .scl_i(scl),
-        .sda_o(sda_master_o), .scl_o(scl_master_o), .finished(finished)
+        .sda_o(sda_master_o), .scl_o(scl_master_o) 
     );
 
     // Clock generation
     initial begin
         clk = 0;
         forever #(CLK_PERIOD / 2) clk = ~clk;
-    end
-
-    always @(posedge finished) begin
-        $display("I2C Master Finished Transactions");
-        #100;
-        $finish;
     end
 
 
@@ -71,6 +67,7 @@ module testbench ();
     // I2C master simulation tasks can be added here to drive scl_master and sda_master
     // Test sequence
     initial begin
+        $display("I2C Master Testbench started ...");
         // Initialize signals
         rst_n <= 0;
 
@@ -80,12 +77,22 @@ module testbench ();
 
         // Simulate I2C transactions here
         // Example: Start condition, address, data, stop condition
-
-        // Finish simulation after 1s if not finished before
-        #1_000_000;
+        i2c_master.set_idle();
+        #(1000);
+        // Additional I2C transactions can be added here
+        i2c_master.write_data_bytes(1, 7'h21, 8'h5A);
+        #(1000);
+        i2c_master.write_data_bytes(2, 7'h21, 8'h33, 8'h7E);
+        #(1000);
+        i2c_master.write_data_bytes(3, 7'h21, 8'h1A, 8'hCD, 8'hC4);
+        #(1000);
+        i2c_master.write_data_bytes(4, 7'h21, 8'h83, 8'h72, 8'hA5, 8'h23);
+        #(1000);
+        $display("I2C Master Testbench finished ...");
         $finish;
     end
 
+    // Dump file generation
     initial
     if (DUMP_FLAG==1) begin
         $display("... generating dump file %s",dump_fname);

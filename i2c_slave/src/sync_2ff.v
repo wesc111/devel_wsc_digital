@@ -15,8 +15,8 @@ module sync_2ff (
 
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
-            ff1 <= 1'b0;
-            ff2 <= 1'b0;
+            ff1 <= 1'b1;
+            ff2 <= 1'b1;
         end else begin
             ff1 <= in_ai;
             ff2 <= ff1;
