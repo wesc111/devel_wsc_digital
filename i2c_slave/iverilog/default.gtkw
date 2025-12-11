@@ -1,15 +1,15 @@
 [*]
 [*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
-[*] Tue Dec  9 16:50:04 2025
+[*] Thu Dec 11 15:33:49 2025
 [*]
 [dumpfile] "/home/werner/github_repos/devel_wsc_digital/i2c_slave/iverilog/i2c_slave_tb.vcd"
-[dumpfile_mtime] "Tue Dec  9 16:48:52 2025"
-[dumpfile_size] 593885
+[dumpfile_mtime] "Thu Dec 11 15:32:57 2025"
+[dumpfile_size] 1841183
 [savefile] "/home/werner/github_repos/devel_wsc_digital/i2c_slave/iverilog/default.gtkw"
-[timestart] 103840000
-[size] 1479 1119
-[pos] 179 0
-*-22.001818 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[timestart] 0
+[size] 2002 1119
+[pos] 82 56
+*-26.382961 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] testbench.
 [treeopen] testbench.i2c_slave_inst.
 [sst_width] 297
@@ -18,16 +18,24 @@
 [sst_vpaned_height] 337
 @28
 testbench.rst_n
+@2029
+^2 /home/werner/github_repos/devel_wsc_digital/i2c_slave/iverilog/master_states.gtkw
+testbench.i2c_master.master_state[2:0]
+@28
 testbench.clk
 testbench.scl
+testbench.i2c_slave_inst.scl_posedge
 testbench.sda
+testbench.scl_master_o
+testbench.sda_master_o
 testbench.scl_slave_o
+testbench.i2c_slave_inst.data_send
+testbench.i2c_slave_inst.sda_o
 testbench.sda_slave_o
 testbench.i2c_slave_inst.start_condition
 testbench.i2c_slave_inst.stop_condition
-testbench.i2c_master_inst.finished
 testbench.i2c_slave_inst.ack_cycle
-testbench.i2c_slave_inst.set_bit_count
+testbench.i2c_slave_inst.rwn_bit
 @22
 testbench.i2c_slave_inst.bit_count[3:0]
 @2028
@@ -38,9 +46,18 @@ testbench.i2c_slave_inst.address_reg[6:0]
 @28
 testbench.i2c_slave_inst.address_matched
 testbench.i2c_slave_inst.addr_ack
+testbench.i2c_slave_inst.data_ack
+testbench.i2c_slave_inst.read_data
+@200
+-uC Interface
+@28
+testbench.i2c_slave_inst.data_o_valid
 @22
 testbench.i2c_slave_inst.data_o[7:0]
 @28
-testbench.i2c_slave_inst.data_ready
+testbench.i2c_slave_inst.data_i_ready
+testbench.i2c_slave_inst.data_i_valid
+@22
+testbench.i2c_slave_inst.data_i[7:0]
 [pattern_trace] 1
 [pattern_trace] 0
