@@ -6,6 +6,11 @@
 // Author: Werner Schoegler
 // Date: 30-Nov-2025
 
+// TBD: stop condition is not always working correctly, needs more debugging and testing
+
+// added i2c_master_state_t for better state tracking and debugging
+// added inputs to gen_bit task for better state tracking and debugging
+
 
 `timescale 1ns / 1ps
 
@@ -22,13 +27,32 @@ module i2c_master
     output logic scl_o
 );
 
-   typedef enum logic [2:0] {
-        IDLE = 3'd0,
-        START = 3'd1,
-        STOP = 3'd2,
-        BIT = 3'd3,
-        ACK = 3'd4,
-        DATA = 3'd5 
+   typedef enum logic [7:0] {
+        IDLE  = 8'h0,
+        START = 8'h1,
+        STOP  = 8'h2,
+        BIT   = 8'h3,
+        B_END = 8'h4,
+        ACK   = 8'h5,
+        ADDR  = 8'h6,
+        DATA  = 8'h7,
+        RWN   = 8'h8,
+        A0    = 8'h10,
+        A1    = 8'h11,
+        A2    = 8'h12,
+        A3    = 8'h13,
+        A4    = 8'h14,
+        A5    = 8'h15,
+        A6    = 8'h16,
+        A7    = 8'h17,
+        D0    = 8'h20,
+        D1    = 8'h21,
+        D2    = 8'h22,
+        D3    = 8'h23,
+        D4    = 8'h24,
+        D5    = 8'h25,
+        D6    = 8'h26,
+        D7    = 8'h27
    } i2c_master_state_t;
 
    i2c_master_state_t master_state;
@@ -55,44 +79,80 @@ endtask
 task gen_stop;
     master_state = STOP;
     sda_o = 1'b0;
-    scl_o = 1'b0;
-    #(STASTO_DELAY);
+    #(BIT_DELAY/4);  
     scl_o = 1'b1;
     #(STASTO_DELAY);
-    // transition of sda from 0 to 1 while scl is high creates stop condition
     sda_o = 1'b1;
-    #(STASTO_DELAY);
-    sda_o = 1'b1;
+    #(BIT_DELAY);
 endtask
 
-task gen_bit(input logic bit_value);
-    master_state = BIT;
-    #(BIT_DELAY/4);
+// generate a single bit on the bus
+// inputs bit_d_an, bit_num, and is_ack are just used for state tracking and debugging
+task gen_bit(input logic bit_value, input logic bit_d_an, input logic [7:0] bit_num, input logic is_ack, input logic rwn_bit=1'b0);
+    if (rwn_bit) begin
+        master_state = RWN;
+    end
+    else if (is_ack) begin
+        master_state = ACK;
+    end
+    else begin
+        if (!bit_d_an) begin
+            case (bit_num)
+                7: master_state = A7;
+                6: master_state = A6;
+                5: master_state = A5;
+                4: master_state = A4;
+                3: master_state = A3;
+                2: master_state = A2;
+                1: master_state = A1;
+                0: master_state = A0;
+                default: master_state = ADDR;   
+            endcase
+        end
+        else begin
+            case (bit_num)
+                7: master_state = D7;
+                6: master_state = D6;
+                5: master_state = D5;
+                4: master_state = D4;
+                3: master_state = D3;
+                2: master_state = D2;
+                1: master_state = D1;
+                0: master_state = D0;
+                default: master_state = DATA;   
+            endcase
+        end
+    end
+    scl_o = 1'b0;
     sda_o = bit_value;
     #(BIT_DELAY/4);
     scl_o = 1'b1;
     #(BIT_DELAY/2);
     scl_o = 1'b0;
+    #(BIT_DELAY/4);
 endtask
 
 // generate a read or write operation to the given address
 task gen_read_write(input logic rwn, input logic [6:0] addr);
     for (int i = 6; i >= 0; i--) begin
-        gen_bit(addr[i]);
+        gen_bit(addr[i], 1'b0, i, 1'b0);
     end
-    gen_bit(rwn); //R_WN bit for write operation
+    gen_bit(rwn, 1'b0, 7, 1'b0, 1'b1); //R_WN bit for write operation
     // Generate ACK bit (assuming slave always ACKs)
-    gen_bit(1'b1); // Master releases SDA for ACK    
+    gen_bit(1'b1, 1'b1, 0, 1'b1); // Master releases SDA for ACK    
 endtask
 
 task gen_data(input logic rwn, input logic [7:0] data);
     for (int i = 7; i >= 0; i--) begin
-        gen_bit(data[i]);
+        gen_bit(data[i], 1'b1, i, 1'b0);
     end
+    // Generate ACK bit
     if (!rwn)
-        gen_bit(1'b1); // for write operation, master releases SDA for ACK from slave
+    // for write operation, master releases SDA for ACK from slave
+        gen_bit(1'b1, 1'b1, 0, 1'b1); 
     else
-        gen_bit(1'b0); // for read operation, master sends ACK after data
+        // for read operation, master sends ACK after data
+        gen_bit(1'b0, 1'b1, 0, 1'b1); 
 endtask
 
 // Write multiple data bytes to a given address

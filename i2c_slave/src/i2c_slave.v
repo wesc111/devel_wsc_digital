@@ -167,7 +167,12 @@ module i2c_slave
                 if (stop_condition) begin
                     next_state = STATE_IDLE;
                 end
-                else if (ack_cycle & scl_posedge) begin
+                // for read, go to DATA_ACK after ack_cycle
+                else if (ack_cycle & scl_posedge & rwn_bit) begin
+                    next_state = STATE_DATA_ACK;
+                end
+                // for write, go back to DATA
+                else if (ack_cycle & scl_posedge & !rwn_bit) begin
                     next_state = STATE_DATA;
                 end
             end

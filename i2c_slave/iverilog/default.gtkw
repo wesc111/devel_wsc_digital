@@ -1,15 +1,15 @@
 [*]
 [*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
-[*] Thu Dec 11 15:33:49 2025
+[*] Fri Dec 12 17:02:58 2025
 [*]
 [dumpfile] "/home/werner/github_repos/devel_wsc_digital/i2c_slave/iverilog/i2c_slave_tb.vcd"
-[dumpfile_mtime] "Thu Dec 11 15:32:57 2025"
-[dumpfile_size] 1841183
+[dumpfile_mtime] "Fri Dec 12 17:02:26 2025"
+[dumpfile_size] 1963566
 [savefile] "/home/werner/github_repos/devel_wsc_digital/i2c_slave/iverilog/default.gtkw"
 [timestart] 0
 [size] 2002 1119
-[pos] 82 56
-*-26.382961 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[pos] 0 82
+*-26.473291 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] testbench.
 [treeopen] testbench.i2c_slave_inst.
 [sst_width] 297
@@ -18,13 +18,12 @@
 [sst_vpaned_height] 337
 @28
 testbench.rst_n
-@2029
-^2 /home/werner/github_repos/devel_wsc_digital/i2c_slave/iverilog/master_states.gtkw
-testbench.i2c_master.master_state[2:0]
-@28
 testbench.clk
+@2023
+^2 /home/werner/github_repos/devel_wsc_digital/i2c_slave/iverilog/master_states.gtkw
+testbench.i2c_master.master_state[7:0]
+@28
 testbench.scl
-testbench.i2c_slave_inst.scl_posedge
 testbench.sda
 testbench.scl_master_o
 testbench.sda_master_o

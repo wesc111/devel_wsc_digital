@@ -76,7 +76,7 @@ module testbench ();
     integer data_i_index = 0;
     initial begin
         // Initialize data_i_array with some test data
-        data_i_array[0] = 8'hA5;
+        data_i_array[0] = 8'h81;
         data_i_array[1] = 8'h5A;
         data_i_array[2] = 8'h3C;
         data_i_array[3] = 8'hC3;
@@ -140,7 +140,9 @@ module testbench ();
         i2c_master.write_data_bytes(4, SLAVE_ADDRESS, 8'h83, 8'h72, 8'hA5, 8'h23);
         i2c_idle_cycles(40);
         $display("I2C Master Testbench read tests");
-        i2c_master.read_data_bytes(4, SLAVE_ADDRESS);
+        i2c_master.read_data_bytes(1, SLAVE_ADDRESS);
+        i2c_idle_cycles(10);
+        i2c_master.read_data_bytes(2, SLAVE_ADDRESS);
         i2c_idle_cycles(10);
         $display("I2C Master Testbench finished ...");
         $finish;
