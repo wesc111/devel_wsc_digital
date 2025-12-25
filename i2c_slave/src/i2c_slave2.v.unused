@@ -1,4 +1,4 @@
-// i2c_slave.v
+// i2c_slave2.v
 // Simple I2C Slave Module
 
 // This module implements a basic I2C slave that can receive data from an I2C master.
@@ -28,11 +28,11 @@
 // - Support for read operations (implementation in progress)
 
 // Author: Werner Schoegler
-// Date: 26-Dec-2025
+// Date: 30-Nov-2025
 
 `timescale 1ns / 1ps
 
-module i2c_slave
+module i2c_slave2
     #(
         parameter SLAVE_ADDRESS = 7'h21 // Fixed 7-bit slave address
     ) 

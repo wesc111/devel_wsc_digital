@@ -19,7 +19,9 @@ TB_FILES =  $(TB_DIR)/i2c_master.sv $(TB_DIR)/i2c_slave_tb.sv
 DUMPFILE = i2c_slave_tb.vcd
 GTKWFILE = default.gtkw
 
-IVER_OPTIONS = -I $(INCLUDE_DIR) -g2012
+VER_VERSION = 2012
+# VER_VERSION = 2009
+IVER_OPTIONS = -I $(INCLUDE_DIR) -g$(VER_VERSION)
 
 IVERILOG = iverilog
 VVP = vvp

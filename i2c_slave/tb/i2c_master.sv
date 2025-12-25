@@ -11,7 +11,6 @@
 // added i2c_master_state_t for better state tracking and debugging
 // added inputs to gen_bit task for better state tracking and debugging
 
-
 `timescale 1ns / 1ps
 
 module i2c_master 
@@ -57,19 +56,29 @@ module i2c_master
 
    i2c_master_state_t master_state;
 
+   int read_byte_array_index = 0;
+
+// SDA output is either driven low because of ACK cycle or driven by sda_o1
+logic sda_o1;
+logic rwn;
+// TBD WSC - currently only sda_o1 is used, need to implement ACK driving logic
+assign sda_o = sda_o1;
+//assign sda_o = (master_state == ACK) ? 1'b0 : sda_o1;
+
 task set_idle;
     master_state = IDLE;
-    sda_o = 1'b1;
+    sda_o1 = 1'b1;
     scl_o = 1'b1;
 endtask
 
 task gen_start;
+    read_byte_array_index = 0;   // reset read byte array index at start condition
     master_state = START;
-    sda_o = 1'b1;
+    sda_o1 = 1'b1;
     scl_o = 1'b1;
     #(STASTO_DELAY);
      // transition of sda from 1 to 0 while scl is high creates start condition
-    sda_o = 1'b0;
+    sda_o1 = 1'b0;
     #(STASTO_DELAY);
     scl_o = 1'b0;
     #(STASTO_DELAY);
@@ -78,17 +87,18 @@ endtask
 // TBD: dead code, remove
 task gen_stop;
     master_state = STOP;
-    sda_o = 1'b0;
+    sda_o1 = 1'b0;
     #(BIT_DELAY/4);  
     scl_o = 1'b1;
     #(STASTO_DELAY);
-    sda_o = 1'b1;
+    sda_o1 = 1'b1;
     #(BIT_DELAY);
 endtask
 
 // generate a single bit on the bus
 // inputs bit_d_an, bit_num, and is_ack are just used for state tracking and debugging
-task gen_bit(input logic bit_value, input logic bit_d_an, input logic [7:0] bit_num, input logic is_ack, input logic rwn_bit=1'b0);
+logic read_bit_value;
+task gen_bit(input logic bit_value, input logic bit_d_an, input logic [7:0] bit_num, input logic is_ack, input logic rwn_bit);
     if (rwn_bit) begin
         master_state = RWN;
     end
@@ -124,35 +134,46 @@ task gen_bit(input logic bit_value, input logic bit_d_an, input logic [7:0] bit_
         end
     end
     scl_o = 1'b0;
-    sda_o = bit_value;
+    sda_o1 = bit_value;
     #(BIT_DELAY/4);
     scl_o = 1'b1;
+    read_bit_value = sda_i; // Capture read bit value at rising edge of clock
     #(BIT_DELAY/2);
     scl_o = 1'b0;
     #(BIT_DELAY/4);
 endtask
 
-// generate a read or write operation to the given address
-task gen_read_write(input logic rwn, input logic [6:0] addr);
+// generate the address part of the I2C protocol
+task gen_addr_part(input logic rwn, input logic [6:0] addr);
     for (int i = 6; i >= 0; i--) begin
-        gen_bit(addr[i], 1'b0, i, 1'b0);
+        //      bit_value, bit_d_an, bit_num, is_ack, rwn_bit
+        gen_bit(addr[i],   1'b0,     i,       1'b0,   1'b0);
     end
-    gen_bit(rwn, 1'b0, 7, 1'b0, 1'b1); //R_WN bit for write operation
+    //      bit_value, bit_d_an, bit_num, is_ack, rwn_bit
+    gen_bit(rwn,       1'b0,     7,       1'b0,   1'b1); //R_WN bit for write operation
     // Generate ACK bit (assuming slave always ACKs)
-    gen_bit(1'b1, 1'b1, 0, 1'b1); // Master releases SDA for ACK    
+    //      bit_value, bit_d_an, bit_num, is_ack, rwn_bit
+    gen_bit(1'b1,      1'b1,     0,       1'b1,   1'b0); // Master releases SDA for ACK    
 endtask
 
+// generate a data byte on the bus
 task gen_data(input logic rwn, input logic [7:0] data);
     for (int i = 7; i >= 0; i--) begin
-        gen_bit(data[i], 1'b1, i, 1'b0);
+        //      bit_value, bit_d_an, bit_num, is_ack, rwn_bit
+        gen_bit(data[i],   1'b1,     i,       1'b0,   1'b0);
+        read_byte[i] = read_bit_value; // Capture read data bits
     end
+    read_byte_array[read_byte_array_index] = read_byte; // Store read byte in array
+    read_byte_array_index++;
     // Generate ACK bit
     if (!rwn)
     // for write operation, master releases SDA for ACK from slave
-        gen_bit(1'b1, 1'b1, 0, 1'b1); 
+        //      bit_value, bit_d_an, bit_num, is_ack, rwn_bit
+        gen_bit(1'b1,      1'b1,     0,       1'b1,   1'b0); 
     else
         // for read operation, master sends ACK after data
-        gen_bit(1'b0, 1'b1, 0, 1'b1); 
+        //      bit_value, bit_d_an, bit_num, is_ack, rwn_bit
+        gen_bit(1'b0,      1'b1,     0,       1'b1,   1'b0); 
 endtask
 
 // Write multiple data bytes to a given address
@@ -163,7 +184,7 @@ task write_data_bytes(input int number_of_bytes=1, input logic [6:0] addr,
                       input logic [7:0] data3 = 8'h00);
     $display("I2C Master Model write_data_bytes() to address 0x%0h with %0d bytes", addr, number_of_bytes);
     gen_start();
-    gen_read_write(1'b0, addr);
+    gen_addr_part(1'b0, addr);
     gen_data(1'b0, data0);
     if (number_of_bytes > 1) gen_data(1'b0, data1);
     if (number_of_bytes > 2) gen_data(1'b0, data2);
@@ -173,11 +194,13 @@ task write_data_bytes(input int number_of_bytes=1, input logic [6:0] addr,
     $display("I2C Master Model write_data_bytes() completed");
 endtask
 
+logic [7:0] read_byte; // Store up to 16 read bytes
+byte read_byte_array [15:0]; // alternative storage for read bytes
 task read_data_bytes(input int number_of_bytes=1, input logic [6:0] addr);
     logic [7:0] dummy_data = 8'hFF; // Dummy data for clocking out reads
     $display("I2C Master Model read_data_bytes() from address 0x%0h with %0d bytes", addr, number_of_bytes);
     gen_start();
-    gen_read_write(1'b1, addr);
+    gen_addr_part(1'b1, addr);
     for (int i = 0; i < number_of_bytes; i++) begin
         gen_data(1'b1, dummy_data); // Send dummy data to clock out reads
     end
@@ -185,6 +208,16 @@ task read_data_bytes(input int number_of_bytes=1, input logic [6:0] addr);
     set_idle();
     $display("I2C Master Model read_data_bytes() completed");
 endtask
+
+function logic [7:0] get_data_byte(int byte_index=0);
+    // TBD: implement reading data byte from slave
+    $display("I2C Master Model get_data_byte() called, returning 0x%0h", read_byte_array[byte_index]);
+    if (byte_index < 0 || byte_index > 15) begin
+        $error("get_data_byte() index out of range: %0d", byte_index);
+        return 8'h00;
+    end 
+    get_data_byte = read_byte_array[byte_index];
+endfunction
 
 endmodule
     // I2C Master signals and states
