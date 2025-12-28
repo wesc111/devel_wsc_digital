@@ -98,12 +98,9 @@ endtask
 // generate a single bit on the bus
 // inputs bit_d_an, bit_num, and is_ack are just used for state tracking and debugging
 logic read_bit_value;
-task gen_bit(input logic bit_value, input logic bit_d_an, input logic [7:0] bit_num, input logic is_ack, input logic rwn_bit);
+task gen_bit(input logic bit_value, input logic bit_d_an, input logic [7:0] bit_num, input logic rwn_bit);
     if (rwn_bit) begin
         master_state = RWN;
-    end
-    else if (is_ack) begin
-        master_state = ACK;
     end
     else begin
         if (!bit_d_an) begin
@@ -143,24 +140,50 @@ task gen_bit(input logic bit_value, input logic bit_d_an, input logic [7:0] bit_
     #(BIT_DELAY/4);
 endtask
 
+localparam ACK_TO_SCL_RISE_DELAY = 10;
+// generate ACK/NACK bit on the bus, timing is similar to gen_bit, but master releases SDA faster (after neg edge of SCL)
+task gen_ack(logic bit_value, input logic stop_condition=1'b0);
+    master_state = ACK;
+    scl_o = 1'b0;
+    sda_o1 = bit_value; // Master drives ACK/NACK bit
+    #(BIT_DELAY/4);
+    scl_o = 1'b1;
+    #(BIT_DELAY/2);
+    scl_o = 1'b0;
+    if (!stop_condition) begin
+        #(ACK_TO_SCL_RISE_DELAY);
+        sda_o1 = 1'b1; // Release SDA after ACK
+        #(BIT_DELAY/4-ACK_TO_SCL_RISE_DELAY);      
+    end
+    else begin
+        sda_o1 = 1'b0; // Keep SDA driven for stop condition
+        master_state = STOP;
+        #(BIT_DELAY/4);  
+        scl_o = 1'b1;
+        #(STASTO_DELAY);
+        sda_o1 = 1'b1;
+        #(BIT_DELAY);
+    end
+endtask
+
 // generate the address part of the I2C protocol
 task gen_addr_part(input logic rwn, input logic [6:0] addr);
     for (int i = 6; i >= 0; i--) begin
-        //      bit_value, bit_d_an, bit_num, is_ack, rwn_bit
-        gen_bit(addr[i],   1'b0,     i,       1'b0,   1'b0);
+        //      bit_value, bit_d_an, bit_num, rwn_bit
+        gen_bit(addr[i],   1'b0,     i,       1'b0);
     end
-    //      bit_value, bit_d_an, bit_num, is_ack, rwn_bit
-    gen_bit(rwn,       1'b0,     7,       1'b0,   1'b1); //R_WN bit for write operation
+    //      bit_value, bit_d_an, bit_num, rwn_bit
+    gen_bit(rwn,       1'b0,     7,       1'b1); //R_WN bit for write operation
     // Generate ACK bit (assuming slave always ACKs)
-    //      bit_value, bit_d_an, bit_num, is_ack, rwn_bit
-    gen_bit(1'b1,      1'b1,     0,       1'b1,   1'b0); // Master releases SDA for ACK    
+    //      bit_value, bit_d_an, bit_num, rwn_bit
+    gen_ack(1'b1, 1'b0); // Master releases SDA for ACK    
 endtask
 
 // generate a data byte on the bus
-task gen_data(input logic rwn, input logic [7:0] data);
+task gen_data(input logic rwn, input logic [7:0] data, input logic stop_condition);
     for (int i = 7; i >= 0; i--) begin
-        //      bit_value, bit_d_an, bit_num, is_ack, rwn_bit
-        gen_bit(data[i],   1'b1,     i,       1'b0,   1'b0);
+        //      bit_value, bit_d_an, bit_num,  rwn_bit
+        gen_bit(data[i],   1'b1,     i,     1'b0);
         read_byte[i] = read_bit_value; // Capture read data bits
     end
     read_byte_array[read_byte_array_index] = read_byte; // Store read byte in array
@@ -168,12 +191,11 @@ task gen_data(input logic rwn, input logic [7:0] data);
     // Generate ACK bit
     if (!rwn)
     // for write operation, master releases SDA for ACK from slave
-        //      bit_value, bit_d_an, bit_num, is_ack, rwn_bit
-        gen_bit(1'b1,      1'b1,     0,       1'b1,   1'b0); 
+        gen_ack(1'b1, stop_condition);
     else
         // for read operation, master sends ACK after data
         //      bit_value, bit_d_an, bit_num, is_ack, rwn_bit
-        gen_bit(1'b0,      1'b1,     0,       1'b1,   1'b0); 
+        gen_ack(1'b0, stop_condition); 
 endtask
 
 // Write multiple data bytes to a given address
@@ -185,11 +207,16 @@ task write_data_bytes(input int number_of_bytes=1, input logic [6:0] addr,
     $display("I2C Master Model write_data_bytes() to address 0x%0h with %0d bytes", addr, number_of_bytes);
     gen_start();
     gen_addr_part(1'b0, addr);
-    gen_data(1'b0, data0);
-    if (number_of_bytes > 1) gen_data(1'b0, data1);
-    if (number_of_bytes > 2) gen_data(1'b0, data2);
-    if (number_of_bytes > 3) gen_data(1'b0, data3);
-    gen_stop();
+    gen_data(1'b0, data0, (number_of_bytes == 1) ? 1'b1 : 1'b0);
+    if (number_of_bytes >= 2) begin
+        gen_data(1'b0, data1, (number_of_bytes == 2) ? 1'b1 : 1'b0);
+    end
+    if (number_of_bytes >= 3) begin
+        gen_data(1'b0, data2, (number_of_bytes == 3) ? 1'b1 : 1'b0);
+    end
+    if (number_of_bytes >= 4) begin
+        gen_data(1'b0, data3, (number_of_bytes == 4) ? 1'b1 : 1'b0);
+    end
     set_idle();
     $display("I2C Master Model write_data_bytes() completed");
 endtask
@@ -202,9 +229,8 @@ task read_data_bytes(input int number_of_bytes=1, input logic [6:0] addr);
     gen_start();
     gen_addr_part(1'b1, addr);
     for (int i = 0; i < number_of_bytes; i++) begin
-        gen_data(1'b1, dummy_data); // Send dummy data to clock out reads
+        gen_data(1'b1, dummy_data, (i == number_of_bytes - 1) ? 1'b1 : 1'b0); // Send dummy data to clock out reads
     end
-    gen_stop();
     set_idle();
     $display("I2C Master Model read_data_bytes() completed");
 endtask

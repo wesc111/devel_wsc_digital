@@ -230,14 +230,20 @@ module testbench ();
         if (run_write_tests_p) begin
             $display("I2C Master Testbench write tests");
             run_write_tests(1);
+            i2c_idle_cycles(40);
+            /*
             run_write_tests(2);
+            i2c_idle_cycles(40);
             run_write_tests(3);
+            i2c_idle_cycles(40);
             run_write_tests(4);
             i2c_idle_cycles(40);
+            */
         end
         if (run_read_tests_p) begin           
             $display("I2C Master Testbench read tests");
             run_read_test(1);
+            i2c_idle_cycles(40);
             run_read_test(2);
             i2c_idle_cycles(40);
         end

@@ -106,6 +106,62 @@ module i2c_slave
     logic scl_negedge;
     assign scl_negedge = scl_i_sync_d1 && !scl_i_sync;
 
+    // delayed scl_negedge signal to allow for proper timing of data output
+    logic scl_negedge_delayed;
+    localparam MAX_NEGEDGE_COUNT = 4'd10;
+    logic [3:0] negedge_count;
+    logic negedge_count_running;
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            negedge_count <= 4'd0;
+            scl_negedge_delayed <= 1'b0;
+
+            // default values
+        end  
+        else begin
+            // start counting on scl_negedge
+            if (stop_condition || start_condition) begin
+                negedge_count <= 4'd0;
+                scl_negedge_delayed <= 1'b0;
+                negedge_count_running <= 1'b0;
+            end
+            else if (scl_negedge && negedge_count==4'd0)  begin           
+                scl_negedge_delayed <= 1'b0;
+                negedge_count_running <= 1'b1;
+            end
+            else if (negedge_count_running && negedge_count<MAX_NEGEDGE_COUNT) begin
+                negedge_count <= negedge_count + 1'd1;
+                scl_negedge_delayed <= 1'b0;
+            end
+            else if (negedge_count_running && negedge_count==MAX_NEGEDGE_COUNT) begin
+                negedge_count <= 1'd0;
+                scl_negedge_delayed <= 1'b1;
+                negedge_count_running <= 1'b0;
+            end
+            else begin
+                negedge_count <= 4'd0;
+                scl_negedge_delayed <= 1'b0;
+            end
+        end
+    end
+
+    // delayed scl_negedge signal for use in state machine
+    logic scl_negedge_delayed_d1;
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            scl_negedge_delayed_d1 <= 1'b0;
+        end  
+        else if (stop_condition || start_condition) begin
+            scl_negedge_delayed_d1 <= 1'b0;
+        end
+        else if (scl_negedge_delayed) begin
+            scl_negedge_delayed_d1 <= 1'b1;
+        end
+        else begin
+            scl_negedge_delayed_d1 <= 1'b0;
+        end
+    end
+
     logic start_condition;
     logic stop_condition;
     always_ff @(posedge clk or negedge rst_n) begin
@@ -185,10 +241,10 @@ module i2c_slave
         else if (start_condition) begin
             sda_o1 <= 1'b1;
         end
-        else if (scl_negedge && current_state==STATE_DATA && rwn_bit && address_matched) begin
-            sda_o1 <= data_i[bit_count];
-        end
-        else if (sda_ack_master_negedge && current_state==STATE_DATA_ACK && rwn_bit && address_matched) begin
+        //else if (scl_negedge_delayed && current_state==STATE_DATA_ACK && rwn_bit && address_matched && sda_i_sync==1'b1) begin
+        //    sda_o1 <= data_i[bit_count];
+        //end
+        else if (scl_negedge_delayed_d1 && current_state==STATE_DATA && rwn_bit && address_matched) begin
             sda_o1 <= data_i[bit_count];
         end
         else if (scl_negedge && current_state==STATE_DATA_ACK && rwn_bit && address_matched) begin
@@ -278,18 +334,6 @@ module i2c_slave
         end
     end
 
-    logic sda_ack_master_d1;
-    always_ff @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
-            sda_ack_master_d1 <= 1'b0;
-        end  
-        else begin
-            sda_ack_master_d1 <= sda_ack_master;
-        end
-    end
-
-    assign sda_ack_master_negedge = sda_ack_master_d1 && !sda_ack_master;
-
     // data_i_ready: indicates that the I2C slave is ready to accept next data_i
     // We are ready to accept new data when master has acknowledged the last byte that has been sent
     assign data_i_ready = master_acknowledged && !data_fetched_within_ack;
@@ -310,45 +354,33 @@ module i2c_slave
         end
     end
 
-    logic bit_count_finished;   // currently not used : TBD WSC - check if necessary, otherwise remove
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             bit_count <= 'd0;
-            bit_count_finished <= 1'b0;
         end  
         else if (current_state==STATE_IDLE && start_condition) begin
             bit_count <= 'd6;
-            bit_count_finished <= 1'b0;
         end
         else if (stop_condition) begin
             bit_count <= 'd0;
-            bit_count_finished <= 1'b0;
         end
         else if (scl_posedge && (current_state==STATE_ADDR_ACK || current_state==STATE_DATA_ACK)) begin
             bit_count <= 'd7;
-            bit_count_finished <= 1'b0;
         end
         /* early return to DATA state after ACK from master -> reset bit_count */
-        else if (scl_negedge && current_state==STATE_DATA_ACK) begin
+        else if (scl_posedge && current_state==STATE_DATA_ACK) begin
             bit_count <= 'd7;
-            bit_count_finished <= 1'b0;
         end
         else if (scl_negedge && current_state==STATE_ADDRESS) begin
             // Decrement bit count as long as we are in ADDRESS or DATA state
             if (bit_count>4'd0) begin
                     bit_count <= bit_count - 4'd1;
             end
-            else begin
-                bit_count_finished <= 1'b1;
-            end
         end
         else if (scl_posedge && current_state==STATE_DATA) begin
             // Decrement bit count as long as we are in ADDRESS or DATA state
             if (bit_count>4'd0) begin
                     bit_count <= bit_count - 4'd1;
-            end
-            else begin
-                bit_count_finished <= 1'b1;
             end
         end
     end
@@ -435,8 +467,8 @@ module i2c_slave
                 else if (scl_posedge && rwn_bit && bit_count==4'd7 && sda_i_sync==1'b1) begin
                     next_state = STATE_DATA;
                 end
-                // for read operations, after NACK from master, go back to DATA state
-                else if (sda_ack_master_negedge && rwn_bit && bit_count==4'd7 ) begin
+                // for read operations, after ACK from master, go back to DATA state
+                else if (scl_negedge_delayed && rwn_bit && bit_count==4'd7 && sda_i_sync==1'b1) begin
                     next_state = STATE_DATA;
                 end
             end 
@@ -446,8 +478,6 @@ module i2c_slave
     assign sda_o =  1'b1 & 
                     !sda_ack_slave &
                     sda_o1;       // Slave pulls SDA low to acknowledge
-    // TBD WSC - remove if not needed:
-    // assign sda_o = sda_ack_o;    // Acknowledge by pulling SDA low
 
     // scl_o always 1 -> intentional: no clock stretching (slave delivers data always immediately)
     assign scl_o = 1'b1; 
