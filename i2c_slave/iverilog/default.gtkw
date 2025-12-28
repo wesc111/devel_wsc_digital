@@ -1,27 +1,30 @@
 [*]
 [*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
-[*] Thu Dec 25 22:29:13 2025
+[*] Fri Dec 26 22:11:43 2025
 [*]
 [dumpfile] "/home/werner/github_repos/devel_wsc_digital/i2c_slave/iverilog/i2c_slave_tb.vcd"
-[dumpfile_mtime] "Thu Dec 25 22:28:34 2025"
-[dumpfile_size] 894153
+[dumpfile_mtime] "Fri Dec 26 22:07:30 2025"
+[dumpfile_size] 1099510
 [savefile] "/home/werner/github_repos/devel_wsc_digital/i2c_slave/iverilog/default.gtkw"
 [timestart] 0
 [size] 2187 1119
-[pos] -1 -1
-*-25.170166 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[pos] 60 -24
+*-25.490875 368270000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] testbench.
 [treeopen] testbench.i2c_slave_inst.
 [sst_width] 297
-[signals_width] 182
+[signals_width] 214
 [sst_expanded] 1
 [sst_vpaned_height] 337
 @420
 testbench.test_case_count
 testbench.assert_pass_count
 testbench.assert_fail_count
-@28
+@200
+-Top Signals
+@29
 testbench.rst_n
+@28
 testbench.clk
 [color] 6
 testbench.scl
@@ -38,24 +41,32 @@ testbench.sda_master_o
 @200
 -Slave
 @28
-testbench.scl_slave_o
-testbench.sda_slave_o
+testbench.i2c_slave_inst.sda_o1
 testbench.i2c_slave_inst.start_condition
 testbench.i2c_slave_inst.stop_condition
 @2022
 ^2 /home/werner/github_repos/devel_wsc_digital/i2c_slave/iverilog/states.gtkw
 testbench.i2c_slave_inst.current_state[3:0]
+@28
+testbench.i2c_slave_inst.scl_posedge
+testbench.i2c_slave_inst.scl_negedge
 @22
 testbench.i2c_slave_inst.bit_count[3:0]
 @28
+testbench.sda_slave_o
 testbench.i2c_slave_inst.rwn_bit
-testbench.i2c_slave_inst.data_ack_finished
 testbench.i2c_slave_inst.address_matched
 @22
 testbench.i2c_slave_inst.address_reg[6:0]
+@28
+testbench.i2c_slave_inst.sda_ack_master
+testbench.i2c_slave_inst.sda_ack_master_negedge
+testbench.i2c_slave_inst.sda_ack_slave
+testbench.i2c_slave_inst.data_fetched_within_ack
 @200
 -uC Interface
 @28
+testbench.i2c_slave_inst.sda_i_sync
 testbench.i2c_slave_inst.data_o_valid
 @22
 testbench.i2c_slave_inst.data_o[7:0]

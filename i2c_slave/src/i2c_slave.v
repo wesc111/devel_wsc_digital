@@ -176,6 +176,28 @@ module i2c_slave
         end
     end
 
+    logic sda_o1;
+    // for data read, serial output goes to sda_o1;
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            sda_o1 <= 1'b1;
+        end  
+        else if (start_condition) begin
+            sda_o1 <= 1'b1;
+        end
+        else if (scl_negedge && current_state==STATE_DATA && rwn_bit && address_matched) begin
+            sda_o1 <= data_i[bit_count];
+        end
+        else if (sda_ack_master_negedge && current_state==STATE_DATA_ACK && rwn_bit && address_matched) begin
+            sda_o1 <= data_i[bit_count];
+        end
+        else if (scl_negedge && current_state==STATE_DATA_ACK && rwn_bit && address_matched) begin
+            sda_o1 <= 1'b1;
+        end
+    end
+    
+    //assign sda_o1 = (current_state==STATE_DATA && rwn_bit && address_matched) ? data_i[bit_count] : 1'b1;
+
     // on the falling edge of SCL in DATA_ACK state, check if master acknowledged
     logic master_acknowledged;
     always_ff @(posedge clk or negedge rst_n) begin
@@ -195,9 +217,82 @@ module i2c_slave
         end
     end
 
+    logic data_fetched_within_ack;
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            data_fetched_within_ack <= 1'b0;
+        end
+        else if (current_state==STATE_DATA_ACK && master_acknowledged) begin
+            data_fetched_within_ack <= 1'b1;
+        end
+        else if (current_state==STATE_DATA || current_state==STATE_IDLE) begin
+            data_fetched_within_ack <= 1'b0;
+        end
+    end
+
+    // two signals show when a ack coms from the slave or from the master
+    logic sda_ack_slave;
+    logic sda_ack_master;
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            sda_ack_slave <= 1'b0;
+        end  
+        // all conditions to set one of the ack signals
+        else if (scl_negedge && address_matched && current_state==STATE_ADDR_ACK) begin
+            sda_ack_slave <= 1'b1;
+        end
+        else if (scl_negedge && address_matched && current_state==STATE_DATA_ACK && !rwn_bit) begin
+            sda_ack_slave <= 1'b1;
+        end
+        // all conditions to clear the ack signals
+        else if (stop_condition) begin
+            sda_ack_slave <= 1'b0;
+        end
+        else if (scl_negedge && current_state==STATE_DATA) begin
+            sda_ack_slave <= 1'b0;
+        end
+        else if (scl_negedge && current_state==STATE_DATA_ACK && !rwn_bit) begin
+            sda_ack_slave <= 1'b0;
+        end
+    end
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            sda_ack_slave <= 1'b0;
+            sda_ack_master <= 1'b0;
+        end  
+        else if (scl_posedge && address_matched && current_state==STATE_DATA_ACK && rwn_bit && !sda_i_sync) begin
+                sda_ack_master <= 1'b1;
+        end
+        // all conditions to clear the ack signals
+        else if (stop_condition) begin
+            sda_ack_master <= 1'b0;
+        end
+        else if (scl_posedge && current_state==STATE_DATA && rwn_bit) begin
+            sda_ack_master <= 1'b0;
+        end
+        else if (scl_negedge && current_state==STATE_DATA_ACK && rwn_bit) begin
+            sda_ack_master <= 1'b0;
+        end
+        else if (current_state==STATE_DATA_ACK && rwn_bit && sda_i_sync) begin
+            sda_ack_master <= 1'b0;
+        end
+    end
+
+    logic sda_ack_master_d1;
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            sda_ack_master_d1 <= 1'b0;
+        end  
+        else begin
+            sda_ack_master_d1 <= sda_ack_master;
+        end
+    end
+
+    assign sda_ack_master_negedge = sda_ack_master_d1 && !sda_ack_master;
+
     // data_i_ready: indicates that the I2C slave is ready to accept next data_i
     // We are ready to accept new data when master has acknowledged the last byte that has been sent
-    assign data_i_ready = master_acknowledged;
+    assign data_i_ready = master_acknowledged && !data_fetched_within_ack;
 
     logic address_matched;
     assign address_matched = (address_reg == SLAVE_ADDRESS);
@@ -332,35 +427,27 @@ module i2c_slave
                 else if (start_condition) begin
                     next_state = STATE_START;
                 end
-                else if (scl_posedge) begin
+                // for write operation go back to DATA state after next falling edge of SCL
+                else if (scl_posedge && !rwn_bit) begin
+                    next_state = STATE_DATA;
+                end
+                // for read operations, after ACK from master, go back to DATA state
+                else if (scl_posedge && rwn_bit && bit_count==4'd7 && sda_i_sync==1'b1) begin
+                    next_state = STATE_DATA;
+                end
+                // for read operations, after NACK from master, go back to DATA state
+                else if (sda_ack_master_negedge && rwn_bit && bit_count==4'd7 ) begin
                     next_state = STATE_DATA;
                 end
             end 
         endcase
     end
-
-    logic sda_ack_o;
-    logic data_ack_finished;  // to ensure that we only pull SDA low once per ACK cycle
-    always_ff @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
-            sda_ack_o <= 1'b1;
-            data_ack_finished <= 1'b0;
-        end  
-        else if (scl_negedge && address_matched &&
-                  (  current_state==STATE_ADDR_ACK 
-                     || (current_state==STATE_DATA_ACK && !rwn_bit && !data_ack_finished)) 
-                ) begin
-            sda_ack_o <= 1'b0; // Acknowledge by pulling SDA low
-            data_ack_finished <= 1'b1;
-        end
-        else if (scl_negedge) begin
-            sda_ack_o <= 1'b1; // Release SDA
-            data_ack_finished <= 1'b0;
-        end
-    end 
-
    
-    assign sda_o =  sda_ack_o;    // Acknowledge by pulling SDA low
+    assign sda_o =  1'b1 & 
+                    !sda_ack_slave &
+                    sda_o1;       // Slave pulls SDA low to acknowledge
+    // TBD WSC - remove if not needed:
+    // assign sda_o = sda_ack_o;    // Acknowledge by pulling SDA low
 
     // scl_o always 1 -> intentional: no clock stretching (slave delivers data always immediately)
     assign scl_o = 1'b1; 

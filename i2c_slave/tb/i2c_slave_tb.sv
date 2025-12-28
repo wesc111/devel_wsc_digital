@@ -4,15 +4,11 @@
 // Author: Werner Schoegler
 // Date: 26-Dec-2025
 
-
-
-
 // Note: This testbench uses a simple I2C master model to drive the I2C slave DUT.
 // The I2C master model is a placeholder and should be expanded according to specific test requirements
 // as needed.
 // The testbench performs basic write and read operations to verify the functionality of the I2C slave.
 // The testbench also includes assertion checks to validate the data integrity during I2C transactions.
-
 
 `timescale 1ns / 1ps
 
@@ -21,8 +17,9 @@
 `define DUMP_FILE "i2c_slave_tb.vcd"
 `define DEBUG_LEVEL 1
 
-`define RUN_WRITE_TESTS
-//`define RUN_READ_TESTS 
+// select which tests to run
+`define RUN_WRITE_TESTS 1
+`define RUN_READ_TESTS 1
 
 module testbench ();
 
@@ -37,7 +34,9 @@ module testbench ();
     parameter STASTO_DELAY = 500;   // Delay for start/stop conditions
     parameter BIT_DELAY = 1000;     // Delay for each bit
 
-    parameter int debugging_level = `DEBUG_LEVEL;
+    parameter int debugging_level_p = `DEBUG_LEVEL;
+    parameter int run_write_tests_p = `RUN_WRITE_TESTS;
+    parameter int run_read_tests_p = `RUN_READ_TESTS;
 
     // Signals
     logic clk;
@@ -109,8 +108,9 @@ module testbench ();
     end
 
     // Provide data_i to the slave when data_i_ready is asserted
+    logic data_i_array_reset = 1'b0;
     always @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
+        if (!rst_n || data_i_array_reset) begin
             data_i_valid = 1'b0;
             data_i_index = 0;
             data_i = data_i_array[data_i_index];           
@@ -155,7 +155,7 @@ module testbench ();
         if (data_o_valid) begin
             assert (data_o == data_write_array[data_write_index]) begin
                 assert_pass_count++;
-                if (debugging_level >= 1) $display("Assertion pass, data match %2d: 0x%0h", data_write_index, data_o);
+                if (debugging_level_p >= 1) $display("Assertion pass, data match %2d: 0x%0h", data_write_index, data_o);
             end
             else begin
                 assert_fail_count++;
@@ -169,6 +169,47 @@ module testbench ();
     assign (weak1, strong0) sda = (sda_slave_o==1'b0) ? 1'b0 : 1'b1; // Open-drain behavior
     assign (weak1, strong0) scl = (scl_master_o==1'b0) ? 1'b0 : 1'b1; // Open-drain behavior
     assign (weak1, strong0) sda = (sda_master_o==1'b0) ? 1'b0 : 1'b1; // Open-drain behavior
+
+    // Write multiple data bytes to a given address
+    // Example usage: run_write_tests(3) to write 3 bytes
+    task run_write_tests(int number_of_bytes=1);
+        if (number_of_bytes < 1) number_of_bytes = 1;
+        if (number_of_bytes > 4) number_of_bytes = 4;
+        data_write_index = 0;
+        $display("I2C Master Testbench running write test with %0d bytes", number_of_bytes);
+        i2c_master.write_data_bytes(number_of_bytes, SLAVE_ADDRESS, 
+            data_write_array[0], data_write_array[1], data_write_array[2], data_write_array[3]);
+        test_case_count++;
+        i2c_idle_cycles(10);
+    endtask 
+
+    // Read multiple data bytes from a given address (with verification)   
+    // Note: data_i_array is pre-initialized with expected data
+    // The read bytes from the slave are stored in i2c_master.read_byte_array
+    // and verified against data_i_array
+    // Example usage: run_read_test(2) to read 2 bytes and verify
+    task run_read_test(int number_of_bytes=1);
+        if (number_of_bytes < 1) number_of_bytes = 1;
+        if (number_of_bytes > 4) number_of_bytes = 4;
+        $display("I2C Master Testbench running read test with %0d bytes", number_of_bytes);
+        data_i_array_reset = 1'b1;
+        #(CLK_PERIOD*2);
+        data_i_array_reset = 1'b0;
+        #(CLK_PERIOD*2);
+        i2c_master.read_data_bytes(number_of_bytes, SLAVE_ADDRESS);
+        test_case_count++;
+        i2c_idle_cycles(10);
+        for (int i=0; i<number_of_bytes; i++) begin
+            assert (i2c_master.read_byte_array[i] == data_i_array[i]) begin
+                assert_pass_count++;
+                if (debugging_level_p >= 1) $display("Read data match: 0x%0h", i2c_master.read_byte_array[i]);
+            end
+            else begin
+                assert_fail_count++;
+                $error("Read data mismatch: expected 0x%0h, got 0x%0h", data_i_array[i], i2c_master.read_byte_array[i]);
+            end
+        end
+    endtask
 
     // I2C master simulation tasks can be added here to drive scl_master and sda_master
     // Test sequence
@@ -186,63 +227,21 @@ module testbench ();
         i2c_master.set_idle();
         i2c_idle_cycles(10);
         // Additional I2C transactions can be added here
-`ifdef RUN_WRITE_TESTS
-        $display("I2C Master Testbench write tests");
-        i2c_master.write_data_bytes(1, SLAVE_ADDRESS, data_write_array[0]);
-        test_case_count++;
-        i2c_idle_cycles(10);
-        i2c_master.write_data_bytes(2, SLAVE_ADDRESS, data_write_array[1], data_write_array[2]);
-        test_case_count++;
-        i2c_idle_cycles(10);
-        i2c_master.write_data_bytes(3, SLAVE_ADDRESS, data_write_array[3], data_write_array[4], data_write_array[5]);
-        test_case_count++;
-        i2c_idle_cycles(10);
-        i2c_master.write_data_bytes(4, SLAVE_ADDRESS, data_write_array[6], data_write_array[7], data_write_array[8], data_write_array[9]);
-        test_case_count++;
-        i2c_idle_cycles(10);
-        i2c_master.write_data_bytes(4, SLAVE_ADDRESS, data_write_array[10], data_write_array[11], data_write_array[12], data_write_array[13]);
-        test_case_count++;
-        i2c_idle_cycles(10);
-        i2c_master.write_data_bytes(2, SLAVE_ADDRESS, data_write_array[14], data_write_array[15]);
-        test_case_count++;
-        i2c_idle_cycles(40);
-`endif
+        if (run_write_tests_p) begin
+            $display("I2C Master Testbench write tests");
+            run_write_tests(1);
+            run_write_tests(2);
+            run_write_tests(3);
+            run_write_tests(4);
+            i2c_idle_cycles(40);
+        end
+        if (run_read_tests_p) begin           
+            $display("I2C Master Testbench read tests");
+            run_read_test(1);
+            run_read_test(2);
+            i2c_idle_cycles(40);
+        end
 
-`ifdef RUN_READ_TESTS
-        $display("I2C Master Testbench read tests");
-        i2c_master.read_data_bytes(1, SLAVE_ADDRESS);
-        assert (i2c_master.read_byte_array[0] == data_i_array[0]) begin
-            assert_pass_count++;
-            if (debugging_level >= 1) $display("Read data match: 0x%0h", i2c_master.read_byte_array[0]);
-        end
-        else begin
-            assert_fail_count++;
-            $error("Read data mismatch: expected 0x%0h, got 0x%0h", data_i_array[0], i2c_master.read_byte_array[0]);
-        end
-        test_case_count++;
-        i2c_idle_cycles(10);
-        i2c_master.read_data_bytes(2, SLAVE_ADDRESS);
-        assert (i2c_master.read_byte_array[0] == data_i_array[0]) begin
-            assert_pass_count++;
-            if (debugging_level >= 1) $display("Read data match: 0x%0h", i2c_master.read_byte_array[0]);
-        end
-        else begin
-            assert_fail_count++;
-            $error("Read data mismatch: expected 0x%0h, got 0x%0h", data_i_array[0], i2c_master.read_byte_array[0]);
-        end
-        assert (i2c_master.read_byte_array[1] == data_i_array[1]) begin
-            assert_pass_count++;
-            if (debugging_level >= 1) $display("Read data match: 0x%0h", i2c_master.read_byte_array[1]);
-        end
-        else begin
-            assert_fail_count++;
-            $error("Read data mismatch: expected 0x%0h, got 0x%0h", data_i_array[1], i2c_master.read_byte_array[1]);
-        end
-        test_case_count++;
-        i2c_idle_cycles(10);
-        test_case_count++;
-        i2c_idle_cycles(10);
-`endif
 
         // Finish simulation
         $display("I2C Master Testbench finished ...");
