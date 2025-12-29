@@ -40,8 +40,7 @@ run.vvp: $(SRC_FILES) $(TB_FILES)
 sim: run.vvp
 	$(VVP) run.vvp
 
-wav: run.vvp
-	$(VVP) run.vvp
+wav:
 	$(GTKWAVE) -f $(DUMPFILE) $(GTKWFILE) &
 
 run:

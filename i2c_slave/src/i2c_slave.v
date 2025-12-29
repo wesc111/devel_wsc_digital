@@ -17,18 +17,17 @@
 // - Data reception with acknowledgment
 // - Synchronized inputs to local clock domain
 // - all Flip-Flops are positive edge triggered with asynchronous active low reset
+// - done code review based on AI suggestions (Claude Sonnet) on 29-Dec-2025
 
 // Limitations:
 // - No clock stretching
 // - No multi-master support
 // - No error handling
-// - Only supports write operations from master to slave
-
-// Planned enhancements:
-// - Support for read operations (implementation in progress)
+// - No support for 10-bit addressing
+// - No support for repeated start conditions
 
 // Author: Werner Schoegler
-// Date: 26-Dec-2025
+// Date: 29-Dec-2025
 
 `timescale 1ns / 1ps
 
@@ -115,29 +114,33 @@ module i2c_slave
         if (!rst_n) begin
             negedge_count <= 4'd0;
             scl_negedge_delayed <= 1'b0;
-
+            negedge_count_running <= 1'b0;
             // default values
         end  
         else begin
-            // start counting on scl_negedge
+            // reset counting on start or stop condition
             if (stop_condition || start_condition) begin
                 negedge_count <= 4'd0;
                 scl_negedge_delayed <= 1'b0;
                 negedge_count_running <= 1'b0;
             end
+            // start counting on scl_negedge
             else if (scl_negedge && negedge_count==4'd0)  begin           
                 scl_negedge_delayed <= 1'b0;
                 negedge_count_running <= 1'b1;
             end
+            // continue counting till MAX_NEGEDGE_COUNT is reached
             else if (negedge_count_running && negedge_count<MAX_NEGEDGE_COUNT) begin
                 negedge_count <= negedge_count + 1'd1;
                 scl_negedge_delayed <= 1'b0;
             end
+            // when MAX_NEGEDGE_COUNT is reached, set scl_negedge_delayed
             else if (negedge_count_running && negedge_count==MAX_NEGEDGE_COUNT) begin
                 negedge_count <= 1'd0;
                 scl_negedge_delayed <= 1'b1;
                 negedge_count_running <= 1'b0;
             end
+            // default case: clear counters and signals
             else begin
                 negedge_count <= 4'd0;
                 scl_negedge_delayed <= 1'b0;
@@ -209,7 +212,7 @@ module i2c_slave
             address_reg <= 7'b0;
         end
         // first bit of address is received in STATE_START
-        else if (current_state==STATE_START) begin
+        else if (scl_posedge && current_state==STATE_START) begin
             address_reg[bit_count] <= sda_i_sync;
         end
         // shift in address bits till bit_count reaches 0
@@ -241,18 +244,29 @@ module i2c_slave
         else if (start_condition) begin
             sda_o1 <= 1'b1;
         end
-        //else if (scl_negedge_delayed && current_state==STATE_DATA_ACK && rwn_bit && address_matched && sda_i_sync==1'b1) begin
-        //    sda_o1 <= data_i[bit_count];
-        //end
         else if (scl_negedge_delayed_d1 && current_state==STATE_DATA && rwn_bit && address_matched) begin
-            sda_o1 <= data_i[bit_count];
+            if (data_i_valid) begin
+                sda_o1 <= data_i[bit_count];
+            end
+            else begin
+                sda_o1 <= 1'b1; // if no valid data, release bus
+            end
         end
+        // TBD: following code commented out to avoid timing issues, will be removed in future versions once verification is finished
+        /*
+        else if (scl_negedge && current_state==STATE_DATA && rwn_bit && address_matched) begin
+            if (data_i_valid) begin
+                sda_o1 <= data_i[bit_count];
+            end
+            else begin
+                sda_o1 <= 1'b1; // if no valid data, release bus
+            end
+        end
+        */
         else if (scl_negedge && current_state==STATE_DATA_ACK && rwn_bit && address_matched) begin
             sda_o1 <= 1'b1;
         end
     end
-    
-    //assign sda_o1 = (current_state==STATE_DATA && rwn_bit && address_matched) ? data_i[bit_count] : 1'b1;
 
     // on the falling edge of SCL in DATA_ACK state, check if master acknowledged
     logic master_acknowledged;
@@ -313,7 +327,6 @@ module i2c_slave
     end
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
-            sda_ack_slave <= 1'b0;
             sda_ack_master <= 1'b0;
         end  
         else if (scl_posedge && address_matched && current_state==STATE_DATA_ACK && rwn_bit && !sda_i_sync) begin
@@ -342,15 +355,25 @@ module i2c_slave
     assign address_matched = (address_reg == SLAVE_ADDRESS);
 
     // data_o_valid: indicates that data_o has valid data for the uC interface
-    always @(posedge clk or negedge rst_n) begin
+    logic data_o_valid_1;
+    always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
-            data_o_valid <= 1'b0;
+            data_o_valid_1 <= 1'b0;
         end  
         else if (current_state==STATE_DATA && bit_count==4'd0 && !rwn_bit && address_matched && scl_posedge) begin
-            data_o_valid <= 1'b1;
+            data_o_valid_1 <= 1'b1;
         end
         else begin
+            data_o_valid_1 <= 1'b0;
+        end
+    end
+    // delay by 1 cycle to align with data_o
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
             data_o_valid <= 1'b0;
+        end
+        else begin
+            data_o_valid <= data_o_valid_1;
         end
     end
 
@@ -365,10 +388,6 @@ module i2c_slave
             bit_count <= 'd0;
         end
         else if (scl_posedge && (current_state==STATE_ADDR_ACK || current_state==STATE_DATA_ACK)) begin
-            bit_count <= 'd7;
-        end
-        /* early return to DATA state after ACK from master -> reset bit_count */
-        else if (scl_posedge && current_state==STATE_DATA_ACK) begin
             bit_count <= 'd7;
         end
         else if (scl_negedge && current_state==STATE_ADDRESS) begin
@@ -445,12 +464,9 @@ module i2c_slave
                     next_state = STATE_IDLE;
                 end
                 // after 8 bits of data, go to DATA_ACK state
-                else if (scl_posedge && current_state==STATE_DATA && bit_count==4'd0) begin
+                else if (scl_posedge && bit_count==4'd0) begin
                     next_state = STATE_DATA_ACK;
                 end
-            end
-            default: begin
-                next_state = STATE_IDLE;
             end
             STATE_DATA_ACK: begin
                 if (stop_condition) begin
@@ -472,12 +488,15 @@ module i2c_slave
                     next_state = STATE_DATA;
                 end
             end 
+            // for all other cases, go back to IDLE
+            default: begin
+                next_state = STATE_IDLE;
+            end
         endcase
     end
-   
-    assign sda_o =  1'b1 & 
-                    !sda_ack_slave &
-                    sda_o1;       // Slave pulls SDA low to acknowledge
+
+    // Slave pulls SDA low to acknowledge, otherwise sda_o1 is the output
+    assign sda_o = sda_ack_slave ? 1'b0 : sda_o1;
 
     // scl_o always 1 -> intentional: no clock stretching (slave delivers data always immediately)
     assign scl_o = 1'b1; 
