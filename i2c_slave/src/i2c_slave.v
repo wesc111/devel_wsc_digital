@@ -27,7 +27,7 @@
 // - No support for repeated start conditions
 
 // Author: Werner Schoegler
-// Date: 29-Dec-2025
+// Date: 29-Dec-2025 Release Version 1.0
 
 `timescale 1ns / 1ps
 

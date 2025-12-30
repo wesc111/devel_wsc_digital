@@ -1,11 +1,9 @@
-#-------------------------------------------------------------
 #
 # Makefile for VERILOG simulation with iverilog
 #
-# WSG, V0.0 1.2020
-#      V0.1 9.2021 modified to run under MAC OS X
-#      V0.2 10.2025 updated for i2c_slave project
-#-------------------------------------------------------------
+# Werner Schoegler
+# Date: 29-Dec-2025 Release Version 1.0
+#
 
 # define variables
 CUR_LIB = work
@@ -27,12 +25,12 @@ IVERILOG = iverilog
 VVP = vvp
 GTKWAVE = gtkwave
 
+.PHONY: help sim wav run clean
+
 help:
 	@echo "make [sim wav]"
 	@echo "    make sim ... run icarus VERILOG simulation"
 	@echo "    make wav ... run VERILOG simulation and start gtkwave waveform afterwards"
-
-# 
 
 run.vvp: $(SRC_FILES) $(TB_FILES)
 	$(IVERILOG) $(IVER_OPTIONS) -o run.vvp $(SRC_FILES) $(TB_FILES)

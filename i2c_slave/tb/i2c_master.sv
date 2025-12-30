@@ -1,20 +1,29 @@
 // i2c_slave/tb/i2c_master.sv
 // Simple I2C Master model for testbench purposes
-// Note: This is a placeholder implementation and should be expanded
-// according to the specific test requirements.
 
 // Author: Werner Schoegler
-// Date: 26-Dec-2025
+// Date: 29-Dec-2025 Release Version 1.0
 
-// TBD: stop condition is not always working correctly, needs more debugging and testing
+// Recent edits:
+// 29-Dec-2025: 
+// - added i2c_master_state_t for better state tracking and debugging
+// - added inputs to gen_bit task for better state tracking and debugging
+// - adjusted timing of read_bit_value capture in gen_bit task
+// - added read_byte_array to store multiple read bytes
+// - added bounds checking for read_byte_array
+// - added comments and documentation
+// - reviewed and refined code based on AI suggestions
 
-// added i2c_master_state_t for better state tracking and debugging
-// added inputs to gen_bit task for better state tracking and debugging
+// Features:
+// - Generate I2C start and stop conditions
+// - Generate I2C address and data bytes
+// - Support for multi-byte read and write operations
+// - Configurable timing parameters for start/stop delays and bit delays
 
 `timescale 1ns / 1ps
 
 module i2c_master 
-#(  parameter STASTO_DELAY = 100,       // Delay for start/stop conditions
+#(  parameter START_STOP_DELAY = 100,       // Delay for start/stop conditions
     parameter BIT_DELAY = 1000          // Delay for each bit
 )
 (
@@ -30,8 +39,6 @@ module i2c_master
         IDLE  = 8'h0,
         START = 8'h1,
         STOP  = 8'h2,
-        BIT   = 8'h3,
-        B_END = 8'h4,
         ACK   = 8'h5,
         ADDR  = 8'h6,
         DATA  = 8'h7,
@@ -53,45 +60,36 @@ module i2c_master
         D6    = 8'h26,
         D7    = 8'h27
    } i2c_master_state_t;
-
    i2c_master_state_t master_state;
-
    int read_byte_array_index = 0;
-
-// SDA output is either driven low because of ACK cycle or driven by sda_o1
-logic sda_o1;
-logic rwn;
-// TBD WSC - currently only sda_o1 is used, need to implement ACK driving logic
-assign sda_o = sda_o1;
-//assign sda_o = (master_state == ACK) ? 1'b0 : sda_o1;
 
 task set_idle;
     master_state = IDLE;
-    sda_o1 = 1'b1;
+    sda_o = 1'b1;
     scl_o = 1'b1;
 endtask
 
 task gen_start;
     read_byte_array_index = 0;   // reset read byte array index at start condition
     master_state = START;
-    sda_o1 = 1'b1;
+    sda_o = 1'b1;
     scl_o = 1'b1;
-    #(STASTO_DELAY);
+    #(START_STOP_DELAY);
      // transition of sda from 1 to 0 while scl is high creates start condition
-    sda_o1 = 1'b0;
-    #(STASTO_DELAY);
+    sda_o = 1'b0;
+    #(START_STOP_DELAY);
     scl_o = 1'b0;
-    #(STASTO_DELAY);
+    #(START_STOP_DELAY);
 endtask
 
-// TBD: dead code, remove
+// gen_stop: generate stop condition on the bus
 task gen_stop;
     master_state = STOP;
-    sda_o1 = 1'b0;
+    sda_o = 1'b0;
     #(BIT_DELAY/4);  
     scl_o = 1'b1;
-    #(STASTO_DELAY);
-    sda_o1 = 1'b1;
+    #(START_STOP_DELAY);
+    sda_o = 1'b1;
     #(BIT_DELAY);
 endtask
 
@@ -131,37 +129,38 @@ task gen_bit(input logic bit_value, input logic bit_d_an, input logic [7:0] bit_
         end
     end
     scl_o = 1'b0;
-    sda_o1 = bit_value;
+    sda_o = bit_value;
     #(BIT_DELAY/4);
     scl_o = 1'b1;
-    read_bit_value = sda_i; // Capture read bit value at rising edge of clock
-    #(BIT_DELAY/2);
+    #(BIT_DELAY/4);
+    read_bit_value = sda_i; // Capture read bit value 1/4 way into SCL high period
+    #(BIT_DELAY/4);
     scl_o = 1'b0;
     #(BIT_DELAY/4);
 endtask
 
-localparam ACK_TO_SCL_RISE_DELAY = 10;
+localparam ACK_TO_SCL_RISE_DELAY = 10; // Small delay to release SDA quickly after ACK
 // generate ACK/NACK bit on the bus, timing is similar to gen_bit, but master releases SDA faster (after neg edge of SCL)
 task gen_ack(logic bit_value, input logic stop_condition=1'b0);
     master_state = ACK;
     scl_o = 1'b0;
-    sda_o1 = bit_value; // Master drives ACK/NACK bit
+    sda_o = bit_value; // Master drives ACK/NACK bit
     #(BIT_DELAY/4);
     scl_o = 1'b1;
     #(BIT_DELAY/2);
     scl_o = 1'b0;
     if (!stop_condition) begin
         #(ACK_TO_SCL_RISE_DELAY);
-        sda_o1 = 1'b1; // Release SDA after ACK
+        sda_o = 1'b1; // Release SDA after ACK
         #(BIT_DELAY/4-ACK_TO_SCL_RISE_DELAY);      
     end
     else begin
-        sda_o1 = 1'b0; // Keep SDA driven for stop condition
+        sda_o = 1'b0; // Keep SDA driven for stop condition
         master_state = STOP;
         #(BIT_DELAY/4);  
         scl_o = 1'b1;
-        #(STASTO_DELAY);
-        sda_o1 = 1'b1;
+        #(START_STOP_DELAY);
+        sda_o = 1'b1;
         #(BIT_DELAY);
     end
 endtask
@@ -186,15 +185,20 @@ task gen_data(input logic rwn, input logic [7:0] data, input logic stop_conditio
         gen_bit(data[i],   1'b1,     i,     1'b0);
         read_byte[i] = read_bit_value; // Capture read data bits
     end
-    read_byte_array[read_byte_array_index] = read_byte; // Store read byte in array
-    read_byte_array_index++;
+    if (read_byte_array_index < 16) begin
+        // Store read byte in array only if within bounds
+        read_byte_array[read_byte_array_index] = read_byte; 
+        read_byte_array_index++;
+    end
+    else begin
+        $warning("I2C Master Model: read_byte_array index out of bounds: %0d", read_byte_array_index);
+    end
     // Generate ACK bit
     if (!rwn)
-    // for write operation, master releases SDA for ACK from slave
+        // for write operation, master releases SDA for ACK from slave
         gen_ack(1'b1, stop_condition);
     else
         // for read operation, master sends ACK after data
-        //      bit_value, bit_d_an, bit_num, is_ack, rwn_bit
         gen_ack(1'b0, stop_condition); 
 endtask
 
@@ -236,8 +240,6 @@ task read_data_bytes(input int number_of_bytes=1, input logic [6:0] addr);
 endtask
 
 function logic [7:0] get_data_byte(int byte_index=0);
-    // TBD: implement reading data byte from slave
-    $display("I2C Master Model get_data_byte() called, returning 0x%0h", read_byte_array[byte_index]);
     if (byte_index < 0 || byte_index > 15) begin
         $error("get_data_byte() index out of range: %0d", byte_index);
         return 8'h00;
@@ -246,5 +248,3 @@ function logic [7:0] get_data_byte(int byte_index=0);
 endfunction
 
 endmodule
-    // I2C Master signals and states
-    // I2C Master implementation goes here

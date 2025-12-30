@@ -2,7 +2,7 @@
 // Testbench for I2C slave module
 //
 // Author: Werner Schoegler
-// Date: 26-Dec-2025
+// Date: 29-Dec-2025 Release Version 1.0
 
 // Note: This testbench uses a simple I2C master model to drive the I2C slave DUT.
 // The I2C master model is a placeholder and should be expanded according to specific test requirements
@@ -58,7 +58,7 @@ module testbench ();
     parameter I2C_CLOCK_PERIOD = 100; // I2C clock period in ns
     parameter SLAVE_ADDRESS = 7'h21;  // Example slave address
 
-    parameter STASTO_DELAY = 500;   // Delay for start/stop conditions
+    parameter START_STOP_DELAY = 500;   // Delay for start/stop conditions
     parameter BIT_DELAY = 1000;     // Delay for each bit
 
     parameter int debugging_level_p = `DEBUG_LEVEL;
@@ -110,7 +110,7 @@ module testbench ();
     logic scl_master_o;
     logic sda_master_o;
     i2c_master 
-        #(  .STASTO_DELAY(STASTO_DELAY),   // Delay for start/stop conditions
+        #(  .START_STOP_DELAY(START_STOP_DELAY),   // Delay for start/stop conditions
             .BIT_DELAY(BIT_DELAY)          // Delay for each bit
     )  i2c_master (
         .clk(clk), .rst_n(rst_n), .sda_i(sda), .scl_i(scl),

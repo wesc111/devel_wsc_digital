@@ -4,8 +4,9 @@
 // 2-Flip-Flop Synchronizer Module
 // This module synchronizes an asynchronous input signal to the local clock domain
 // using a two-stage flip-flop approach to reduce metastability issues.
+
 // Author: Werner Schoegler
-// Date: 30-Nov-2025
+// Date: 29-Dec-2025 Release Version 1.0
 
 `timescale 1ns / 1ps
 
