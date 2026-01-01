@@ -1,0 +1,24 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Thu Jan  1 19:07:08 2026
+[*]
+[dumpfile] "/home/werner/github_repos/devel_wsc_digital/counter01/sim_verilator/Vsat_counter_tb.vcd"
+[dumpfile_mtime] "Thu Jan  1 19:05:51 2026"
+[dumpfile_size] 5931640
+[savefile] "/home/werner/github_repos/devel_wsc_digital/counter01/sim_verilator/default.gtkw"
+[timestart] 0
+[size] 1000 600
+[pos] -1 -1
+*-17.810226 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] TOP.
+[sst_width] 239
+[signals_width] 110
+[sst_expanded] 1
+[sst_vpaned_height] 159
+@28
+TOP.sat_counter_tb.rst_n
+TOP.sat_counter_tb.clk
+@23
+TOP.sat_counter_tb.count[7:0]
+[pattern_trace] 1
+[pattern_trace] 0

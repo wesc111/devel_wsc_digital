@@ -1,0 +1,41 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Tue Dec 30 16:00:52 2025
+[*]
+[dumpfile] "/home/werner/github_repos/devel_wsc_digital/counter01/iverilog/sat_counter_tb.vcd"
+[dumpfile_mtime] "Tue Dec 30 16:00:20 2025"
+[dumpfile_size] 3858
+[savefile] "/home/werner/github_repos/devel_wsc_digital/counter01/iverilog/default.gtkw"
+[timestart] 0
+[size] 1654 987
+[pos] 307 147
+*-16.734989 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] sat_counter_tb.
+[sst_width] 239
+[signals_width] 174
+[sst_expanded] 1
+[sst_vpaned_height] 293
+@28
+sat_counter_tb.rst_n
+sat_counter_tb.clk
+@200
+-Inputs
+@22
+sat_counter_tb.dut.count_max[7:0]
+@28
+sat_counter_tb.dut.enable
+@29
+sat_counter_tb.dut.clear
+@28
+sat_counter_tb.dut.up_down_n
+@22
+sat_counter_tb.dut.step[7:0]
+@200
+-Outputs
+@22
+sat_counter_tb.dut.count[7:0]
+@28
+sat_counter_tb.dut.count_max_reached
+sat_counter_tb.dut.count_zero_reached
+[pattern_trace] 1
+[pattern_trace] 0
